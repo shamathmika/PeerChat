@@ -260,6 +260,7 @@ class PeerRuntime:
                 round(last - first, 3) if first and last else None
             ),
             "delivered": len(self._deliveries),
+            "seen_seeded": self._seen_seeded,
         }
 
     def stop(self) -> None:
@@ -359,10 +360,19 @@ class PeerRuntime:
             return False
 
         last = self._recovery_last_chunk_at or self._recovery_requested_at
-        if (now - last) >= RECOVERY_SETTLE or (now - self._recovery_requested_at) >= RECOVERY_MAX:
-            self._recovery_took_s = round(now - self._recovery_requested_at, 3)
-            return True
-        return False
+        if (now - last) < RECOVERY_SETTLE and (now - self._recovery_requested_at) < RECOVERY_MAX:
+            return False
+
+        # Messages received *during* recovery may still be sitting in the
+        # hold-back queue. Anchoring the baseline now would let them out later
+        # carrying stamps behind it, scoring as regressions on the first few
+        # entries of the log. Wait for the causal layer to be quiet — bounded
+        # by HOLDBACK_TIMEOUT in the worst case, and by RECOVERY_MAX overall.
+        if len(self.node._hold_back._queue) and (now - self._recovery_requested_at) < RECOVERY_MAX:
+            return False
+
+        self._recovery_took_s = round(now - self._recovery_requested_at, 3)
+        return True
 
     def _begin_causal_log(self) -> None:
         """Anchor the causal log at the post-recovery clock.
