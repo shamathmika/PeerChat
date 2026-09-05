@@ -99,10 +99,19 @@ class PeerRuntime:
         # cluster makes every first delivery look like a causal violation
         # because the clock kept advancing while the log did not.
         self._baseline_vc: dict = {}
+        # Component-wise max of the clocks actually *delivered* here, advanced
+        # under the same lock as the log append. Anchoring the baseline from
+        # node._vc instead races the delivery path: _receive merges a message's
+        # clock before invoking on_message, so a snapshot taken in that window
+        # counts a message the log does not yet contain, and that message then
+        # scores as a regression. This is consistent with the log by
+        # construction.
+        self._delivered_vc: dict[str, int] = {}
 
         self._joined = threading.Event()
         self._joined_at: float | None = None
         self._history = None
+        self._store = None
         self._history_dir = history_dir
         self._restored_vc: dict = {}
         self._recovery_requested_at: float | None = None
@@ -147,16 +156,33 @@ class PeerRuntime:
                 if result.get("type") == "history_chunk":
                     self._recovery_chunks += 1
                     self._recovery_last_chunk_at = time.time()
+                    # Recovered messages are accounted for without ever being
+                    # delivered through this callback, so fold the store's
+                    # clock in. on_message runs on BroadcastNode's single event
+                    # loop thread, so this cannot interleave with an append.
+                    if self._store is not None:
+                        try:
+                            recovered = short_vc(self._store.get_latest_vector_clock())
+                        except Exception:
+                            recovered = {}
+                        with self._log_lock:
+                            for node, count in recovered.items():
+                                if count > self._delivered_vc.get(node, 0):
+                                    self._delivered_vc[node] = count
                 return
 
         now = time.time()
+        vc = short_vc(msg.vector_clock)
         with self._log_lock:
+            for node, count in vc.items():
+                if count > self._delivered_vc.get(node, 0):
+                    self._delivered_vc[node] = count
             self._deliveries.append(
                 {
                     "seq": len(self._deliveries),
                     "id": msg.id,
                     "sender": short_key(msg.sender),
-                    "vc": short_vc(msg.vector_clock),
+                    "vc": vc,
                     "ts_recv": now,
                     "ts_send": msg.timestamp,
                 }
@@ -206,8 +232,14 @@ class PeerRuntime:
                 port=self.identity.chat_port,
                 storage_root=self._history_dir,
             )
-            self._history.start()
+            wiring = self._history.start()
+            self._store = wiring.store
             self._restored_vc = short_vc(self.node._vc.snapshot())
+            # A clock restored from the store covers messages this process
+            # never delivered, so seed the accounted-for clock with it. Safe to
+            # read node._vc here: the node has not started, so nothing is
+            # arriving yet.
+            self._delivered_vc = dict(self._restored_vc)
             self._seed_seen_set()
             logger.info(
                 "history store %s — restored clock with %d entries",
@@ -388,7 +420,7 @@ class PeerRuntime:
         with self._log_lock:
             self._deliveries_before_ready = len(self._deliveries)
             self._deliveries.clear()
-            self._baseline_vc = short_vc(self.node._vc.snapshot())
+            self._baseline_vc = dict(self._delivered_vc)
         if self._deliveries_before_ready:
             logger.info(
                 "causal log anchored after recovery: discarded %d pre-ready deliveries, "
@@ -462,7 +494,7 @@ class PeerRuntime:
         with self._log_lock:
             self._deliveries.clear()
             self._sent.clear()
-            self._baseline_vc = short_vc(self.node._vc.snapshot())
+            self._baseline_vc = dict(self._delivered_vc)
             return dict(self._baseline_vc)
 
     def baseline_vc(self) -> dict:

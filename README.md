@@ -235,7 +235,7 @@ interface.
 | `Dockerfile` | Multi-stage build, non-root (UID 10001), read-only root filesystem |
 | `deploy/identity.py` | Peer identity from the StatefulSet ordinal hostname |
 | `deploy/dns_registry.py` | `PeerRegistry` backed by headless-Service DNS (SRV) |
-| `deploy/peer_node.py` | Headless peer + control API the harness drives |
+| `deploy/peer_node.py` | Headless peer, History/Recovery wiring, control API |
 | `k8s/` | Namespace, headless Service, StatefulSet, kind cluster config |
 | `harness/` | Driver, offline causal checker, chaos variant, summarizer |
 
@@ -309,6 +309,21 @@ scripts/run-latency.sh
 kind delete cluster --name peerchat
 ```
 
+Peers persist their message store on a per-pod PVC (`PEERCHAT_HISTORY_DIR`,
+default `/data/history`), which is what lets a restarted peer recover its
+vector clock. The store's index is rewritten in full on every save, so a store
+that has accumulated across many runs will drag throughput down badly — **wipe
+the volumes between benchmark runs**:
+
+```bash
+kubectl -n peerchat delete statefulset peerchat
+kubectl -n peerchat delete pvc --all
+kubectl apply -f k8s/statefulset.yaml
+```
+
+Unset `PEERCHAT_HISTORY_DIR` to run the peers stateless: faster, but a restarted
+peer then cannot recover its clock.
+
 `scripts/scale.sh N` resizes the cluster and keeps `PEERCHAT_MIN_PEERS` in step
 with the replica count, which the readiness probe depends on.
 
@@ -329,6 +344,161 @@ itself.
 Because the peers' clocks keep advancing whether or not the logs are being
 recorded, `/reset` also captures a **baseline clock**, and the replay starts
 there. Without it, every first delivery after a reset reads as a violation.
+
+### Results
+
+kind v0.33.0, single node, Docker Desktop on Apple Silicon. Ten peers, 1 CPU /
+512Mi each. Latency is timestamped inside the pods (message creation at the
+sender to delivery at the receiver); all pods share one host clock, so the
+deltas need no skew correction. Nothing is measured across a port-forward.
+
+Runs marked *stateless* were taken before History/Recovery was wired in
+(`PEERCHAT_HISTORY_DIR` unset). That distinction matters: persistence changes
+the latency profile by an order of magnitude, and both figures are below.
+
+#### 10,000 messages across 10 peers
+
+Ten senders, 1,000 each. Run twice: once at a rate the cluster cannot absorb,
+once inside its capacity.
+
+| | offered 187.5 msg/s | offered 12 msg/s |
+|---|---|---|
+| Deliveries | 100,000 / 100,000 | 100,000 / 100,000 |
+| Duplicates / lost | 0 / 0 | 0 / 0 |
+| Sustained rate | 19.7 msg/s | 19.7 msg/s |
+| **Out of causal order** | **78,839 (78.8%)** | **0** |
+| ...aged past the 5s timeout | all of them | — |
+| Latency p50 / p95 | 227.5s / 476.2s | 24.0ms / 49.8ms |
+
+*(both stateless)*
+
+Delivery is exact in both runs; ordering is not. The first run was offered
+9.5x what the cluster drains, so queues grew for its whole duration and
+essentially every message outlived `HOLDBACK_TIMEOUT` (5s), at which point
+`HoldBackQueue.drain` releases out of order by design. **The ordering failure
+is a throughput failure.** Inside capacity the same workload is perfectly
+ordered.
+
+#### Where the throughput goes
+
+`_forward` sends to every peer and each receiver re-forwards to every peer but
+the sender, so one broadcast at N=10 costs **9 + 9x8 = 81 WebSocket
+connections**, 72 of them redundant and dropped by `deduplicate` on arrival.
+`_send_with_retry` opens a fresh connection per message per peer rather than
+pooling. That is ~810,000 connections for a 10,000-message run and is what caps
+the cluster near 20 msg/s. It is a property of the gossip fan-out, not of the
+causal layer.
+
+#### Latency vs cluster size
+
+Identical workload in both columns — 1,500 messages at an aggregate 10 msg/s
+(3 peers: 500 each at 3.33/s; 10 peers: 150 each at 1.0/s) — so only the peer
+count varies. *(stateless)*
+
+| | 3 peers | 10 peers | growth |
+|---|---|---|---|
+| Deliveries | 4,500 / 4,500 | 15,000 / 15,000 | — |
+| Causal violations | 0 | 0 | — |
+| p50 | 4.84 ms | 22.96 ms | 4.7x |
+| p95 | 6.93 ms | 44.31 ms | 6.4x |
+| p99 / max | 8.53 / 14.03 ms | 53.82 / 72.44 ms | ~6x / 5x |
+
+3.3x the peers costs 4.7x the median and 6.4x the p95: latency grows faster
+than peer count, and the tail faster than the median. Two things scale at once
+— the vector clock goes from 3 entries to 10, and fan-out from 4 connections
+per broadcast to 81. The fan-out dominates.
+
+This is **not** the cost of vector clocks. Ten integers on a message that
+already pays a TCP+WebSocket handshake is noise. What scales is the broadcast
+pattern underneath.
+
+#### Chaos: deleting pods mid-run
+
+2,000 messages at 12 msg/s, four of ten pods deleted by `kubectl` at 20s
+intervals during origination.
+
+| | before the fix | after the fix |
+|---|---|---|
+| Violations, surviving peers | **0** | **0** |
+| Violations, restarted peers | **48** | **0** |
+| Hold-back drain span | 5.042 / 5.049 / 5.058 / 5.064s | 0.0 / 5.05 / 5.05 / 5.80s |
+| Rejoin | 21-28 ms | 4.8-7.3 s |
+
+**Peers that stay up were never the problem.** Killing 40% of the cluster
+mid-broadcast produced zero violations at any surviving peer in either run, and
+none of them ever used the hold-back queue.
+
+**Restarted peers were.** Before the fix, the four drain spans landed within
+64ms of each other on `HOLDBACK_TIMEOUT`. A queue draining because messages
+became ready varies with traffic; one that hits 5.0s every time is draining by
+expiry. That is the fingerprint the fix had to erase.
+
+#### The fix
+
+Four separate causes, found one at a time — 48 -> 60 -> 31 -> 13 -> 1 -> 0:
+
+1. **The clock did not survive restart.** `BroadcastNode._vc` is in-memory, so a
+   returning peer re-entered at zero and treated the whole live stream as
+   un-orderable. Fixed by wiring `HistoryService` with a per-pod PVC:
+   `wire_node()` merges the persisted clock at startup, and
+   `handle_storage_message()` calls `sync_vector_clock()` when recovery
+   completes. Both already existed for exactly this purpose.
+2. **Sender retry queues re-delivered what recovery had already supplied.**
+   `_seen` resets on restart, so `deduplicate()` waved those through as new and
+   the causal layer saw stamps behind the restored clock. Fixed by seeding the
+   dedup set from the store via `deduplicate()`'s documented contract.
+3. **Messages still sat in hold-back when the causal log was anchored**, and
+   were released afterwards carrying stamps behind the baseline. Readiness now
+   also waits for the causal layer to go quiet.
+4. **An anchor race in the harness** — `_receive` merges a message's clock
+   before invoking `on_message`, so a baseline snapshotted from `_vc` counted a
+   message the log did not yet hold. The baseline is now derived from a
+   delivered-clock advanced under the same lock as the log append.
+
+`distribution/` and `message_history/` are unmodified. The fix is entirely in
+`deploy/peer_node.py` and the StatefulSet's `volumeClaimTemplates`.
+
+#### What the fix costs
+
+| 2,000 messages, 10 peers, 12 msg/s | stateless | with history |
+|---|---|---|
+| Deliveries | 20,000 / 20,000 | 20,000 / 20,000 |
+| Causal violations | 0 | 0 |
+| p50 | ~24 ms | **306.5 ms** |
+| p95 | ~50 ms | **865.7 ms** |
+
+Roughly **13x the median latency**, and rejoin goes from ~25ms to 4.8-7.3s
+because readiness now waits for recovery and causal quiescence. Correctness
+here is bought with latency, deliberately.
+
+The cause is `LocalMessageStore._flush_indexes()`, which rewrites the *entire*
+message-ID index and fsyncs it on every `save()` — O(n) per message, O(n²) over
+a run. With ~7,000 accumulated IDs (a 281KB index) the cluster degrades badly:
+an earlier run on bloated stores showed rejoin times of 122-156s and hold-back
+peaks in the hundreds. **Wipe the PVCs between benchmark runs**, and treat an
+incremental or periodically-flushed index as the prerequisite before putting
+persistence on the delivery path in earnest.
+
+#### Honest limits of this verification
+
+- **The clean-path result proves less than it looks.** Hold-back peak depth is
+  **0** on every surviving peer at sustainable rates: kind runs all ten pods on
+  one node over loopback, which delivers essentially in order, so the causal
+  machinery never had to reorder anything. "Zero violations" there confirms an
+  already-ordered stream stayed ordered.
+- **The checker trusts the stamps it checks.** It verifies delivery order is
+  consistent with the vector clocks on the messages, but those stamps come from
+  the same `_do_broadcast` under test. It is a consistency check, not an
+  independent oracle of happens-before.
+- **No application-level causality.** The harness sends independent messages;
+  the reply-after-its-parent property that motivates causal ordering is never
+  constructed. All causality here is incidental to broadcast.
+- To make the clean path meaningful, inject reordering (`tc netem` on the pod
+  network) and have each message reference the last one its sender delivered.
+
+What the harness did earn: it located four distinct defects, caught a
+regression I introduced within a single run, and distinguished ordering failure
+from delivery failure every time.
 
 ---
 
