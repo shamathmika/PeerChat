@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: peerchat-hl
+  namespace: peerchat
+  labels:
+    app: peerchat
+spec:
+  # Headless: DNS returns one record per pod instead of a single VIP, which is
+  # what gives every peer a stable per-pod name to be addressed by.
+  clusterIP: None
+  # A peer becomes Ready only after it has handshaked with its siblings, and it
+  # can only find its siblings through this Service. Without this flag the
+  # StatefulSet would deadlock at boot: nobody Ready -> no DNS -> nobody joins.
+  publishNotReadyAddresses: true
+  selector:
+    app: peerchat
+  ports:
+    # Named port: publishes _chat._tcp SRV records whose targets are the
+    # per-pod DNS names. DnsPeerRegistry resolves membership from these.
+    - name: chat
+      port: 5678
+      targetPort: chat
+      protocol: TCP
+    - name: control
+      port: 8080
+      targetPort: control
+      protocol: TCP

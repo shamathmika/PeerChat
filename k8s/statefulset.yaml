@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: peerchat
+  namespace: peerchat
+  labels:
+    app: peerchat
+spec:
+  # Ties each pod to a stable name (peerchat-0 ... peerchat-N) and to the
+  # per-pod DNS records published by this Service. The pod name is the peer's
+  # identity and therefore its vector-clock key, so it must survive restarts.
+  serviceName: peerchat-hl
+  replicas: 10
+  # Parallel, not OrderedReady: a peer's readiness depends on its siblings
+  # being up, so serial rollout would never get past peerchat-0.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: peerchat
+  template:
+    metadata:
+      labels:
+        app: peerchat
+    spec:
+      # Chaos deletes pods; don't let them linger draining.
+      terminationGracePeriodSeconds: 5
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: peer
+          image: peerchat:dev
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: chat
+              containerPort: 5678
+            - name: control
+              containerPort: 8080
+          env:
+            # Downward API: the pod name is the identity source. Nothing here
+            # is generated at runtime, so a restarted pod re-enters the cluster
+            # under the same vector-clock key it had before.
+            - name: PEERCHAT_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PEERCHAT_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PEERCHAT_SERVICE
+              value: peerchat-hl
+            - name: PEERCHAT_PORT
+              value: "5678"
+            - name: PEERCHAT_CONTROL_PORT
+              value: "8080"
+            - name: PEERCHAT_REPLICAS
+              value: "10"
+            # Readiness gate: how many siblings must answer hello/hello_ack.
+            - name: PEERCHAT_MIN_PEERS
+              value: "9"
+            - name: PEERCHAT_LOG_LEVEL
+              value: "INFO"
+            # Enables the History/Recovery path. Points at the per-pod volume
+            # below so the message store — and with it the vector clock —
+            # survives a restart. Unset this and the peer runs stateless.
+            - name: PEERCHAT_HISTORY_DIR
+              value: /data/history
+          readinessProbe:
+            # Passes only once PeerRuntime has completed a hello/hello_ack
+            # round trip with PEERCHAT_MIN_PEERS siblings — i.e. the peer has
+            # actually joined, not merely booted.
+            httpGet:
+              path: /readyz
+              port: control
+            initialDelaySeconds: 3
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 60
+          livenessProbe:
+            # Process-level only. Deliberately not tied to join state: a peer
+            # that is isolated should stay up and keep its vector clock rather
+            # than be restarted into an empty one.
+            httpGet:
+              path: /healthz
+              port: control
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 150m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: history
+              mountPath: /data
+      volumes:
+        # readOnlyRootFilesystem needs a writable /tmp for Python's scratch use.
+        - name: tmp
+          emptyDir: {}
+
+  # One volume per pod, retained across restart and rescheduling. This is what
+  # makes recovery meaningful: a returning peerchat-3 reopens peerchat-3's
+  # store, so its vector clock is restored from disk rather than starting at
+  # zero, and its recover_request asks only for what it actually missed.
+  volumeClaimTemplates:
+    - metadata:
+        name: history
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

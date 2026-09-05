@@ -1,0 +1,7 @@
+# Runtime deps for the headless peer container.
+# Deliberately a subset of the repo's requirements.txt: the Flask UI and the
+# OS keyring are not used by a headless peer, and leaving them out keeps the
+# image small.
+websockets>=10.0
+dnspython>=2.4        # SRV lookups against the headless Service
+cryptography          # security/ imports this; without it signing silently no-ops

@@ -1,8 +1,6 @@
-# P2P Chat — Message Distribution Module
+# P2P Chat: Message Distribution Module
 
-**SJSU CMPE 275 Enterprise Applications | Final Project**
-
-This module implements the **Message Distribution** component of the class's peer-to-peer distributed chat system. Messages are propagated to every reachable peer over WebSockets with ACK + retry, de-duplicated by UUID, and delivered in **causal order** using vector clocks.
+This module implements the **Message Distribution** component of the peer-to-peer distributed chat system. Messages are propagated to every reachable peer over WebSockets with ACK + retry, de-duplicated by UUID, and delivered in **causal order** using vector clocks.
 
 ---
 
@@ -140,8 +138,8 @@ node.stop()
 
 Two implementations ship in the module:
 
-- **`InMemoryRegistry`** — hard-coded `(host, port)` list. For demos and tests.
-- **`MembershipRouter`** — drop-in `PeerRegistry` wired to the Peer Discovery team's `MembershipService`. Tracks ACTIVE vs. BACKFILLING vs. SUSPECTED peers and updates in real time via a subscription.
+- **`InMemoryRegistry`**: hard-coded `(host, port)` list. For demos and tests.
+- **`MembershipRouter`**: drop-in `PeerRegistry` wired to the Peer Discovery team's `MembershipService`. Tracks ACTIVE vs. BACKFILLING vs. SUSPECTED peers and updates in real time via a subscription.
 
 ```python
 from distribution import MembershipRouter
@@ -167,15 +165,15 @@ msg = Message(content=user_text, sender=node.address)
 node.broadcast(msg)
 ```
 
-### Security team — `docs/contract_security.md`
+### Security team: `docs/contract_security.md`
 
 Ship `sign(msg) → msg` and `verify(msg) → bool`. Distribution calls `sign(msg)` before sending and `verify(msg)` before accepting incoming messages. Sign the stable fields (`id`, `sender`, `timestamp`, `content`, with `signature=""` for canonicalization). **Do not sign `ttl` or `vector_clock`** — both are mutated in transit.
 
-### Peer Discovery team — `docs/contract_peer_discovery.md`
+### Peer Discovery team: `docs/contract_peer_discovery.md`
 
 Already wired via `MembershipRouter`. Confirm the event-name schema (`JOIN_ACCEPTED`, `HISTORY_BACKFILL_COMPLETE`, `DISCONNECT_SUSPECTED`, `RECONNECTED`, `LEAVE_CONFIRMED`, `DISCONNECT_TIMEOUT`) is final.
 
-### History / Recovery & Storage team — `docs/contract_history.md`
+### History / Recovery & Storage team: `docs/contract_history.md`
 
 Register a listener on `on_message` for logging. Replay backlog to newly-joined peers with `send_to_peer(host, port, msg)`, not `broadcast()` (otherwise recovery chunks are sent to every peer). Direct sends are copied with `ttl=0`, so the target receives the chunk but does not re-forward it. After replay completes, call `node.sync_vector_clock(recovered_vc)` so the causal layer is not blocked by live messages referencing replayed history.
 
@@ -219,6 +217,121 @@ Register a listener on `on_message` for logging. Replay backlog to newly-joined 
 
 ---
 
+## Kubernetes Deployment and Causal-Order Verification
+
+Runs the peer network as a 10-replica StatefulSet on kind or minikube, then
+drives traffic through it and checks offline that no peer ever delivered a
+message before one of its causal predecessors.
+
+Nothing under `distribution/` changed. `VectorClock` and `HoldBackQueue` are
+used exactly as written; identity and peer discovery are supplied through
+`BroadcastNode`'s existing constructor arguments and the `PeerRegistry`
+interface.
+
+### What the deployment adds
+
+| Path | Purpose |
+|---|---|
+| `Dockerfile` | Multi-stage build, non-root (UID 10001), read-only root filesystem |
+| `deploy/identity.py` | Peer identity from the StatefulSet ordinal hostname |
+| `deploy/dns_registry.py` | `PeerRegistry` backed by headless-Service DNS (SRV) |
+| `deploy/peer_node.py` | Headless peer + control API the harness drives |
+| `k8s/` | Namespace, headless Service, StatefulSet, kind cluster config |
+| `harness/` | Driver, offline causal checker, chaos variant, summarizer |
+
+### Identity: why the ordinal, not the pod IP
+
+`BroadcastNode` keys its vector clock on `self.address`. `main.py` builds that
+from `get_lan_ip()`, which inside Kubernetes resolves to the **pod IP** — and a
+pod IP is reassigned on every restart. A peer that crashed and came back would
+re-enter under a new clock key while every other peer kept a dead entry for the
+old one, so the clock would lose continuity exactly when it matters.
+
+A StatefulSet pod keeps its name across restarts, and the headless Service
+publishes a per-pod DNS record for it. `deploy/identity.py` derives the
+advertised address from that name:
+
+```
+peerchat-3.peerchat-hl.peerchat.svc.cluster.local:5678
+```
+
+The pod name comes from the downward API (`fieldRef: metadata.name`). Identity
+is a pure function of the ordinal — no UUIDs, nothing generated at runtime — so
+a restarted `peerchat-3` is the same clock key it was before.
+
+### Discovery: headless-Service DNS, not a seed list
+
+`DnsPeerRegistry` resolves `_chat._tcp.peerchat-hl.<ns>.svc.cluster.local` and
+takes the SRV targets as the peer set. SRV targets are the stable per-pod names,
+so discovery returns identities rather than IPs. Scaling the StatefulSet changes
+the peer set with no config edit; there is no `bootstrap_peers` list.
+
+The headless Service sets `publishNotReadyAddresses: true`. Without it the
+StatefulSet deadlocks at boot: a peer is Ready only once it has found its
+siblings, and DNS would only publish peers that are already Ready.
+
+Results are cached for 5s because `BroadcastNode` calls `get_peers()` on every
+forward. A failed lookup returns the last known good set rather than an empty
+list, so a CoreDNS blip cannot silently empty the peer list mid-broadcast.
+
+### Readiness
+
+`/readyz` passes only after the peer completes a `hello`/`hello_ack` round trip
+with `PEERCHAT_MIN_PEERS` siblings, using `BroadcastNode`'s own handshake
+handler. A resolvable DNS name or an open TCP port is not enough — the gate
+opens when the peer can actually exchange messages on the chat protocol.
+
+Liveness (`/healthz`) is deliberately process-level only. A peer that is
+isolated should keep its vector clock, not be restarted into an empty one.
+
+### Running it
+
+```bash
+# 1. cluster + image
+kind create cluster --config k8s/kind-cluster.yaml
+scripts/build-load.sh
+
+# 2. deploy 10 peers
+kubectl apply -f k8s/namespace.yaml -f k8s/service-headless.yaml -f k8s/statefulset.yaml
+kubectl -n peerchat wait --for=condition=Ready pod -l app=peerchat --timeout=300s
+
+# 3. verification harness: <messages> <peers> <rate/sender> <label>
+scripts/run-harness.sh 10000 10 25 run-10k-10peers
+python3 harness/summarize.py results/run-10k-10peers.txt
+
+# 4. chaos variant (deletes pods with kubectl during the run)
+python3 -m harness.chaos --messages 2000 --kills 4 --kill-interval 12
+
+# 5. latency vs cluster size (3 peers, then 10)
+scripts/run-latency.sh
+
+# teardown
+kind delete cluster --name peerchat
+```
+
+`scripts/scale.sh N` resizes the cluster and keeps `PEERCHAT_MIN_PEERS` in step
+with the replica count, which the readiness probe depends on.
+
+### How the check works
+
+Each peer records every delivery in the order `BroadcastNode` delivered it,
+stamped with the vector clock that arrived on the message. The driver collects
+all ten logs afterwards and replays each one offline against the CBCAST rule:
+
+    (1) V(m)[s] == D[s] + 1          m is the next message p owes from s
+    (2) V(m)[k] <= D[k]  for k != s  everything m depends on is already in
+
+`harness/causal_check.py` deliberately does not import
+`distribution.vector_clock`. Reusing `VectorClock.is_ready` as the oracle would
+make the check tautological — a bug in the readiness predicate would validate
+itself.
+
+Because the peers' clocks keep advancing whether or not the logs are being
+recorded, `/reset` also captures a **baseline clock**, and the replay starts
+there. Without it, every first delivery after a reset reads as a violation.
+
+---
+
 ## Team
 
 | Member | Contribution |
@@ -226,6 +339,6 @@ Register a listener on `on_message` for logging. Replay backlog to newly-joined 
 | Bhuvana (POC) | Integration contracts; end-to-end test; report; README; PR coordination |
 | Asha | Broadcast implementation; vector clock integration |
 | Anukrithi | De-duplication + loop prevention; unit tests |
-| Shamathmika | Vector clock design + implementation + unit tests |
+| Shamathmika | Vector clock design + implementation + unit tests + K8s deployment |
 | Manasa | WebSocket transport |
 | Peer-integration teammate | `MembershipRouter` (alignment with Peer Discovery's `MembershipService`) |

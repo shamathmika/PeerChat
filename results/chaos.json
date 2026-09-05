@@ -1,0 +1,743 @@
+{
+  "config": {
+    "messages": 2000,
+    "peers": 10,
+    "rate": 1.2,
+    "kills": 4,
+    "kill_interval": 20.0,
+    "kill_delay": 20.0,
+    "seed": 275,
+    "out": "results/chaos.json"
+  },
+  "killed": [
+    {
+      "pod": "peerchat-0",
+      "at": 1788501470.579951
+    },
+    {
+      "pod": "peerchat-3",
+      "at": 1788501490.622462
+    },
+    {
+      "pod": "peerchat-7",
+      "at": 1788501510.6657841
+    },
+    {
+      "pod": "peerchat-8",
+      "at": 1788501530.707872
+    }
+  ],
+  "driver_report": {
+    "config": {
+      "peers": 10,
+      "senders": 10,
+      "messages_total": 2000,
+      "rate_per_sender": 1.2
+    },
+    "ready_wait_s": 0.01,
+    "messages_planned": 2000,
+    "plan": {
+      "peerchat-0": 200,
+      "peerchat-1": 200,
+      "peerchat-2": 200,
+      "peerchat-3": 200,
+      "peerchat-4": 200,
+      "peerchat-5": 200,
+      "peerchat-6": 200,
+      "peerchat-7": 200,
+      "peerchat-8": 200,
+      "peerchat-9": 200
+    },
+    "send_wall_s": 167.06,
+    "send_throughput_msg_s": 12.0,
+    "convergence": {
+      "converged": false,
+      "reason": "no progress for 30.0s",
+      "seconds": 30.22,
+      "counts": {
+        "http://peerchat-0.peerchat-hl.peerchat.svc.cluster.local:8080": 1200,
+        "http://peerchat-1.peerchat-hl.peerchat.svc.cluster.local:8080": 1440,
+        "http://peerchat-2.peerchat-hl.peerchat.svc.cluster.local:8080": 1440,
+        "http://peerchat-3.peerchat-hl.peerchat.svc.cluster.local:8080": 984,
+        "http://peerchat-4.peerchat-hl.peerchat.svc.cluster.local:8080": 1440,
+        "http://peerchat-5.peerchat-hl.peerchat.svc.cluster.local:8080": 1440,
+        "http://peerchat-6.peerchat-hl.peerchat.svc.cluster.local:8080": 1440,
+        "http://peerchat-7.peerchat-hl.peerchat.svc.cluster.local:8080": 792,
+        "http://peerchat-8.peerchat-hl.peerchat.svc.cluster.local:8080": 624,
+        "http://peerchat-9.peerchat-hl.peerchat.svc.cluster.local:8080": 1440
+      }
+    },
+    "analysis": {
+      "messages_sent": 1200,
+      "unique_message_ids": 1200,
+      "peers": 10,
+      "total_delivered": 12240,
+      "expected_deliveries": 12000,
+      "violations_total": 48,
+      "violating_deliveries": 12,
+      "violations_by_kind": {
+        "sender_gap": 4,
+        "missing_dependency": 36,
+        "sender_regress": 8
+      },
+      "violations_past_holdback_timeout": 48,
+      "latency_remote_all_peers": {
+        "count": 11040,
+        "p50_ms": 17.39,
+        "p95_ms": 43.44,
+        "p99_ms": 3349.57,
+        "max_ms": 6688.28
+      },
+      "per_pod": [
+        {
+          "pod": "peerchat-0",
+          "sent": 0,
+          "delivered": 1200,
+          "unique": 1200,
+          "duplicates": 0,
+          "missing": 144,
+          "violations": 10,
+          "latency_remote": {
+            "count": 1200,
+            "p50_ms": 16.08,
+            "p95_ms": 840.15,
+            "p99_ms": 5018.55,
+            "max_ms": 5856.19,
+            "mean_ms": 193.36
+          },
+          "final_clock": {
+            "peerchat-3": 246,
+            "peerchat-2": 550,
+            "peerchat-1": 550,
+            "peerchat-0": 198,
+            "peerchat-4": 550,
+            "peerchat-7": 294,
+            "peerchat-6": 550,
+            "peerchat-5": 550,
+            "peerchat-8": 342,
+            "peerchat-9": 550
+          }
+        },
+        {
+          "pod": "peerchat-1",
+          "sent": 200,
+          "delivered": 1440,
+          "unique": 1440,
+          "duplicates": 0,
+          "missing": 0,
+          "violations": 0,
+          "latency_remote": {
+            "count": 1240,
+            "p50_ms": 17.01,
+            "p95_ms": 39.17,
+            "p99_ms": 55.23,
+            "max_ms": 314.06,
+            "mean_ms": 19.92
+          },
+          "final_clock": {
+            "peerchat-1": 550,
+            "peerchat-3": 246,
+            "peerchat-2": 550,
+            "peerchat-0": 198,
+            "peerchat-4": 550,
+            "peerchat-7": 294,
+            "peerchat-5": 550,
+            "peerchat-8": 342,
+            "peerchat-6": 550,
+            "peerchat-9": 550
+          }
+        },
+        {
+          "pod": "peerchat-2",
+          "sent": 200,
+          "delivered": 1440,
+          "unique": 1440,
+          "duplicates": 0,
+          "missing": 0,
+          "violations": 0,
+          "latency_remote": {
+            "count": 1240,
+            "p50_ms": 16.89,
+            "p95_ms": 39.02,
+            "p99_ms": 57.23,
+            "max_ms": 288.17,
+            "mean_ms": 20.36
+          },
+          "final_clock": {
+            "peerchat-2": 550,
+            "peerchat-1": 550,
+            "peerchat-0": 198,
+            "peerchat-3": 246,
+            "peerchat-4": 550,
+            "peerchat-7": 294,
+            "peerchat-6": 550,
+            "peerchat-5": 550,
+            "peerchat-8": 342,
+            "peerchat-9": 550
+          }
+        },
+        {
+          "pod": "peerchat-3",
+          "sent": 0,
+          "delivered": 984,
+          "unique": 984,
+          "duplicates": 0,
+          "missing": 288,
+          "violations": 18,
+          "latency_remote": {
+            "count": 984,
+            "p50_ms": 16.84,
+            "p95_ms": 1680.24,
+            "p99_ms": 5853.57,
+            "max_ms": 6688.28,
+            "mean_ms": 262.33
+          },
+          "final_clock": {
+            "peerchat-1": 550,
+            "peerchat-3": 246,
+            "peerchat-2": 550,
+            "peerchat-0": 198,
+            "peerchat-4": 550,
+            "peerchat-7": 294,
+            "peerchat-5": 550,
+            "peerchat-8": 342,
+            "peerchat-6": 550,
+            "peerchat-9": 550
+          }
+        },
+        {
+          "pod": "peerchat-4",
+          "sent": 200,
+          "delivered": 1440,
+          "unique": 1440,
+          "duplicates": 0,
+          "missing": 0,
+          "violations": 0,
+          "latency_remote": {
+            "count": 1240,
+            "p50_ms": 17.83,
+            "p95_ms": 41.78,
+            "p99_ms": 56.62,
+            "max_ms": 382.7,
+            "mean_ms": 21.58
+          },
+          "final_clock": {
+            "peerchat-4": 550,
+            "peerchat-0": 198,
+            "peerchat-1": 550,
+            "peerchat-3": 246,
+            "peerchat-2": 550,
+            "peerchat-5": 550,
+            "peerchat-6": 550,
+            "peerchat-7": 294,
+            "peerchat-9": 550,
+            "peerchat-8": 342
+          }
+        },
+        {
+          "pod": "peerchat-5",
+          "sent": 200,
+          "delivered": 1440,
+          "unique": 1440,
+          "duplicates": 0,
+          "missing": 0,
+          "violations": 0,
+          "latency_remote": {
+            "count": 1240,
+            "p50_ms": 17.75,
+            "p95_ms": 40.32,
+            "p99_ms": 58.55,
+            "max_ms": 332.76,
+            "mean_ms": 21.03
+          },
+          "final_clock": {
+            "peerchat-5": 550,
+            "peerchat-0": 198,
+            "peerchat-2": 550,
+            "peerchat-3": 246,
+            "peerchat-6": 550,
+            "peerchat-7": 294,
+            "peerchat-4": 550,
+            "peerchat-9": 550,
+            "peerchat-1": 550,
+            "peerchat-8": 342
+          }
+        },
+        {
+          "pod": "peerchat-6",
+          "sent": 200,
+          "delivered": 1440,
+          "unique": 1440,
+          "duplicates": 0,
+          "missing": 0,
+          "violations": 0,
+          "latency_remote": {
+            "count": 1240,
+            "p50_ms": 18.44,
+            "p95_ms": 40.47,
+            "p99_ms": 57.83,
+            "max_ms": 335.84,
+            "mean_ms": 21.32
+          },
+          "final_clock": {
+            "peerchat-6": 550,
+            "peerchat-0": 198,
+            "peerchat-1": 550,
+            "peerchat-3": 246,
+            "peerchat-2": 550,
+            "peerchat-4": 550,
+            "peerchat-7": 294,
+            "peerchat-9": 550,
+            "peerchat-5": 550,
+            "peerchat-8": 342
+          }
+        },
+        {
+          "pod": "peerchat-7",
+          "sent": 0,
+          "delivered": 792,
+          "unique": 792,
+          "duplicates": 0,
+          "missing": 432,
+          "violations": 10,
+          "latency_remote": {
+            "count": 792,
+            "p50_ms": 16.77,
+            "p95_ms": 1680.73,
+            "p99_ms": 5021.94,
+            "max_ms": 5857.23,
+            "mean_ms": 231.87
+          },
+          "final_clock": {
+            "peerchat-5": 550,
+            "peerchat-0": 198,
+            "peerchat-2": 550,
+            "peerchat-3": 246,
+            "peerchat-6": 550,
+            "peerchat-7": 294,
+            "peerchat-4": 550,
+            "peerchat-9": 550,
+            "peerchat-1": 550,
+            "peerchat-8": 342
+          }
+        },
+        {
+          "pod": "peerchat-8",
+          "sent": 0,
+          "delivered": 624,
+          "unique": 624,
+          "duplicates": 0,
+          "missing": 576,
+          "violations": 10,
+          "latency_remote": {
+            "count": 624,
+            "p50_ms": 16.15,
+            "p95_ms": 1680.91,
+            "p99_ms": 5021.59,
+            "max_ms": 5857.73,
+            "mean_ms": 244.14
+          },
+          "final_clock": {
+            "peerchat-5": 550,
+            "peerchat-0": 198,
+            "peerchat-2": 550,
+            "peerchat-3": 246,
+            "peerchat-6": 550,
+            "peerchat-7": 294,
+            "peerchat-4": 550,
+            "peerchat-9": 550,
+            "peerchat-1": 550,
+            "peerchat-8": 342
+          }
+        },
+        {
+          "pod": "peerchat-9",
+          "sent": 200,
+          "delivered": 1440,
+          "unique": 1440,
+          "duplicates": 0,
+          "missing": 0,
+          "violations": 0,
+          "latency_remote": {
+            "count": 1240,
+            "p50_ms": 18.62,
+            "p95_ms": 41.49,
+            "p99_ms": 58.99,
+            "max_ms": 357.66,
+            "mean_ms": 21.99
+          },
+          "final_clock": {
+            "peerchat-9": 550,
+            "peerchat-0": 198,
+            "peerchat-1": 550,
+            "peerchat-2": 550,
+            "peerchat-3": 246,
+            "peerchat-4": 550,
+            "peerchat-6": 550,
+            "peerchat-7": 294,
+            "peerchat-5": 550,
+            "peerchat-8": 342
+          }
+        }
+      ],
+      "violation_samples": [
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "sender_gap",
+          "detail": "V[peerchat-3]=223, expected 1",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-2<=374 but only 0 delivered from peerchat-2",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-1<=374 but only 0 delivered from peerchat-1",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-0<=198 but only 0 delivered from peerchat-0",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-4<=374 but only 0 delivered from peerchat-4",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-7<=246 but only 0 delivered from peerchat-7",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-6<=374 but only 0 delivered from peerchat-6",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-5<=374 but only 0 delivered from peerchat-5",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-8<=270 but only 0 delivered from peerchat-8",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-0",
+          "seq": 0,
+          "id": "5c831aef-0a5a-4940-8b95-f0f6c1de433d",
+          "sender": "peerchat-3",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-9<=374 but only 0 delivered from peerchat-9",
+          "held_ms": 5852.77
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "sender_gap",
+          "detail": "V[peerchat-1]=400, expected 1",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-3<=246 but only 0 delivered from peerchat-3",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-2<=399 but only 0 delivered from peerchat-2",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-0<=198 but only 0 delivered from peerchat-0",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-4<=399 but only 0 delivered from peerchat-4",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-7<=271 but only 0 delivered from peerchat-7",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-5<=399 but only 0 delivered from peerchat-5",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-8<=295 but only 0 delivered from peerchat-8",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-6<=399 but only 0 delivered from peerchat-6",
+          "held_ms": 5853.57
+        },
+        {
+          "pod": "peerchat-3",
+          "seq": 0,
+          "id": "f0a8fa33-ce7b-46b4-becd-235bd0ebe0f5",
+          "sender": "peerchat-1",
+          "kind": "missing_dependency",
+          "detail": "needs peerchat-9<=399 but only 0 delivered from peerchat-9",
+          "held_ms": 5853.57
+        }
+      ]
+    },
+    "send_results": [
+      {
+        "peer": "peerchat-0",
+        "requested": 200,
+        "error": "Remote end closed connection without response",
+        "interrupted": true
+      },
+      {
+        "sent": 200,
+        "started": 1788501451.2389562,
+        "finished": 1788501618.284611,
+        "peer": "peerchat-1"
+      },
+      {
+        "sent": 200,
+        "started": 1788501451.2397685,
+        "finished": 1788501618.2920299,
+        "peer": "peerchat-2"
+      },
+      {
+        "peer": "peerchat-3",
+        "requested": 200,
+        "error": "Remote end closed connection without response",
+        "interrupted": true
+      },
+      {
+        "sent": 200,
+        "started": 1788501451.2412748,
+        "finished": 1788501618.2724235,
+        "peer": "peerchat-4"
+      },
+      {
+        "sent": 200,
+        "started": 1788501451.2411563,
+        "finished": 1788501618.2734418,
+        "peer": "peerchat-5"
+      },
+      {
+        "sent": 200,
+        "started": 1788501451.241772,
+        "finished": 1788501618.2795906,
+        "peer": "peerchat-6"
+      },
+      {
+        "peer": "peerchat-7",
+        "requested": 200,
+        "error": "Remote end closed connection without response",
+        "interrupted": true
+      },
+      {
+        "peer": "peerchat-8",
+        "requested": 200,
+        "error": "Remote end closed connection without response",
+        "interrupted": true
+      },
+      {
+        "sent": 200,
+        "started": 1788501451.2422733,
+        "finished": 1788501618.279561,
+        "peer": "peerchat-9"
+      }
+    ]
+  },
+  "recovery": [
+    {
+      "pod": "peerchat-0",
+      "uptime_s": 179.276,
+      "rejoin_s": 0.023,
+      "holdback_peak": 63,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": 0.256,
+      "holdback_last_nonzero_s": 5.298,
+      "holdback_drain_span_s": 5.042,
+      "delivered": 1200
+    },
+    {
+      "pod": "peerchat-1",
+      "uptime_s": 615.884,
+      "rejoin_s": 0.023,
+      "holdback_peak": 0,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": null,
+      "holdback_last_nonzero_s": null,
+      "holdback_drain_span_s": null,
+      "delivered": 1440
+    },
+    {
+      "pod": "peerchat-2",
+      "uptime_s": 623.024,
+      "rejoin_s": 0.04,
+      "holdback_peak": 0,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": null,
+      "holdback_last_nonzero_s": null,
+      "holdback_drain_span_s": null,
+      "delivered": 1440
+    },
+    {
+      "pod": "peerchat-3",
+      "uptime_s": 159.071,
+      "rejoin_s": 0.028,
+      "holdback_peak": 64,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": 0.511,
+      "holdback_last_nonzero_s": 5.574,
+      "holdback_drain_span_s": 5.064,
+      "delivered": 984
+    },
+    {
+      "pod": "peerchat-4",
+      "uptime_s": 624.115,
+      "rejoin_s": 6.075,
+      "holdback_peak": 0,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": null,
+      "holdback_last_nonzero_s": null,
+      "holdback_drain_span_s": null,
+      "delivered": 1440
+    },
+    {
+      "pod": "peerchat-5",
+      "uptime_s": 624.237,
+      "rejoin_s": 6.042,
+      "holdback_peak": 0,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": null,
+      "holdback_last_nonzero_s": null,
+      "holdback_drain_span_s": null,
+      "delivered": 1440
+    },
+    {
+      "pod": "peerchat-6",
+      "uptime_s": 624.444,
+      "rejoin_s": 6.068,
+      "holdback_peak": 0,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": null,
+      "holdback_last_nonzero_s": null,
+      "holdback_drain_span_s": null,
+      "delivered": 1440
+    },
+    {
+      "pod": "peerchat-7",
+      "uptime_s": 140.309,
+      "rejoin_s": 0.022,
+      "holdback_peak": 49,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": 0.252,
+      "holdback_last_nonzero_s": 5.31,
+      "holdback_drain_span_s": 5.058,
+      "delivered": 792
+    },
+    {
+      "pod": "peerchat-8",
+      "uptime_s": 120.402,
+      "rejoin_s": 0.021,
+      "holdback_peak": 42,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": 0.252,
+      "holdback_last_nonzero_s": 5.3,
+      "holdback_drain_span_s": 5.049,
+      "delivered": 624
+    },
+    {
+      "pod": "peerchat-9",
+      "uptime_s": 624.887,
+      "rejoin_s": 6.044,
+      "holdback_peak": 0,
+      "holdback_depth_now": 0,
+      "holdback_first_nonzero_s": null,
+      "holdback_last_nonzero_s": null,
+      "holdback_drain_span_s": null,
+      "delivered": 1440
+    }
+  ],
+  "violations_survivors": 0,
+  "violations_restarted": 48
+}

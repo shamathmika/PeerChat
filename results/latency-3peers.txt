@@ -1,0 +1,135 @@
+[driver] all 3 peers ready after 0.0s
+[driver] logs reset
+[driver] sending 1500 across 3 senders: [500, 500, 500]
+[driver] origination done in 150.9s
+[driver] convergence: True after 0.01s
+[driver] collected logs from 3 peers
+===REPORT-JSON-BEGIN===
+{
+  "config": {
+    "peers": 3,
+    "senders": 3,
+    "messages_total": 1500,
+    "rate_per_sender": 3.3333333333333335
+  },
+  "ready_wait_s": 0.01,
+  "send_wall_s": 150.89,
+  "send_throughput_msg_s": 9.9,
+  "convergence": {
+    "converged": true,
+    "seconds": 0.01,
+    "counts": {
+      "http://peerchat-0.peerchat-hl.peerchat.svc.cluster.local:8080": 1500,
+      "http://peerchat-1.peerchat-hl.peerchat.svc.cluster.local:8080": 1500,
+      "http://peerchat-2.peerchat-hl.peerchat.svc.cluster.local:8080": 1500
+    }
+  },
+  "analysis": {
+    "messages_sent": 1500,
+    "unique_message_ids": 1500,
+    "peers": 3,
+    "total_delivered": 4500,
+    "expected_deliveries": 4500,
+    "violations_total": 0,
+    "violations_by_kind": {},
+    "violations_past_holdback_timeout": 0,
+    "latency_remote_all_peers": {
+      "count": 3000,
+      "p50_ms": 4.84,
+      "p95_ms": 6.93,
+      "p99_ms": 8.53,
+      "max_ms": 14.03
+    },
+    "per_pod": [
+      {
+        "pod": "peerchat-0",
+        "sent": 500,
+        "delivered": 1500,
+        "unique": 1500,
+        "duplicates": 0,
+        "missing": 0,
+        "violations": 0,
+        "latency_remote": {
+          "count": 1000,
+          "p50_ms": 4.82,
+          "p95_ms": 6.91,
+          "p99_ms": 8.54,
+          "max_ms": 13.55,
+          "mean_ms": 4.76
+        },
+        "final_clock": {
+          "peerchat-0": 500,
+          "peerchat-2": 500,
+          "peerchat-1": 500
+        }
+      },
+      {
+        "pod": "peerchat-1",
+        "sent": 500,
+        "delivered": 1500,
+        "unique": 1500,
+        "duplicates": 0,
+        "missing": 0,
+        "violations": 0,
+        "latency_remote": {
+          "count": 1000,
+          "p50_ms": 4.85,
+          "p95_ms": 6.95,
+          "p99_ms": 8.39,
+          "max_ms": 13.11,
+          "mean_ms": 4.81
+        },
+        "final_clock": {
+          "peerchat-1": 500,
+          "peerchat-0": 500,
+          "peerchat-2": 500
+        }
+      },
+      {
+        "pod": "peerchat-2",
+        "sent": 500,
+        "delivered": 1500,
+        "unique": 1500,
+        "duplicates": 0,
+        "missing": 0,
+        "violations": 0,
+        "latency_remote": {
+          "count": 1000,
+          "p50_ms": 4.85,
+          "p95_ms": 6.89,
+          "p99_ms": 8.62,
+          "max_ms": 14.03,
+          "mean_ms": 4.83
+        },
+        "final_clock": {
+          "peerchat-2": 500,
+          "peerchat-0": 500,
+          "peerchat-1": 500
+        }
+      }
+    ],
+    "violation_samples": []
+  },
+  "send_results": [
+    {
+      "sent": 500,
+      "started": 1788500873.9957952,
+      "finished": 1788501024.8830595,
+      "peer": "peerchat-0"
+    },
+    {
+      "sent": 500,
+      "started": 1788500873.9958885,
+      "finished": 1788501024.8824427,
+      "peer": "peerchat-1"
+    },
+    {
+      "sent": 500,
+      "started": 1788500873.9959395,
+      "finished": 1788501024.8860633,
+      "peer": "peerchat-2"
+    }
+  ]
+}
+===REPORT-JSON-END===
+pod "harness-1788500873" deleted from peerchat namespace

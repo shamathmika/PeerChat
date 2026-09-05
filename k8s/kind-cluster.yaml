@@ -1,0 +1,8 @@
+# Single-node kind cluster. All 10 peers land on one node, which keeps the
+# wall clocks used for the latency numbers on the same host clock — pod-to-pod
+# timestamp deltas are therefore meaningful without any clock-skew correction.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: peerchat
+nodes:
+  - role: control-plane
